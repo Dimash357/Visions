@@ -4,8 +4,6 @@ from django_app import views
 app_name = 'django_app'
 urlpatterns = [
     path('', views.home_view, name=''),
-    path('index/', views.HomeView.as_view(), name='index'),
-    path('home/', views.HomeView.as_view(), name='home'),
     path('home_main/', views.home_main, name='home_main'),
 
 
@@ -15,7 +13,7 @@ urlpatterns = [
 
 
     path('homework/', views.homework, name='homework'),
-    path('visions/', views.visions, name='visions'),
+    # path('visions/', views.visions, name='visions'),
     path('upload_task/<int:task_id>/', views.upload_task, name='upload_task'),
 
     path('profile/', views.profile_create, name='profile'),

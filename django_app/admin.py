@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django_app import models
-from .models import profile
+from .models import profile, Notification
 from .models import Task
 
 
@@ -31,6 +31,8 @@ class TodosAdmin(admin.ModelAdmin):
 
 admin.site.register(profile)
 admin.site.register(Task)
+admin.site.register(Notification)
+
 
 
 # class LogAdmin(admin.ModelAdmin):

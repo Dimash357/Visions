@@ -15,8 +15,11 @@ class DjangoAppConfig(AppConfig):
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = profile
-        fields = ['image', 'description', 'city', 'points']
+        fields = ['image', 'description', 'city']
 
 
-class FileUploadForm(forms.Form):
-    attachment = forms.FileField()
+
+
+
+# class FileUploadForm(forms.Form):
+#     attachment = forms.FileField()

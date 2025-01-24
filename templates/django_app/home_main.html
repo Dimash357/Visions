@@ -11,15 +11,16 @@
 
         <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav me-auto mb-2 mb-md-0">
-                <img src="{% static 'media/profile_images/photo_2025-01-05_16-34-54.jpg' %}" class="img-fluid" style="width: 50px; height: 50px; border-radius: 100%; margin-top: 5px;">
-                <a href="https://visions.kz/" class="btn btn-outline-primary" type="submit" target="_blank" style="margin-left: 8px; align-content: center">Visions</a>
-                <a href="{% url 'django_app:homework' %}" class="btn btn-outline-primary" type="submit" style="margin-left: 8px; align-content: center">Homework</a>
+                <img src="{% static 'img/photo_2025-01-05_16-34-54.jpg' %}" class="img-fluid" style="width: 50px; height: 50px; border-radius: 100%; margin-top: 5px;">
+                <a href="{% url 'django_app:home_main' %}" class="btn btn-outline-primary" type="submit" style="margin-left: 8px; align-content: center;">&#x1F3E0; Main</a>
+                <a href="https://visions.kz/" class="btn btn-outline-primary" type="submit" target="_blank" style="margin-left: 8px; align-content: center;">&#x1F4CC; Visions</a>
+                <a href="{% url 'django_app:homework' %}" class="btn btn-outline-primary" type="submit" style="margin-left: 8px; align-content: center">&#x1F4DA; Homework</a>
             </ul>   
             <form class="d-flex" style="align-items: center;">
     <div class="d-flex" style="align-items: center; margin-top: 5px ">
-                <img src="{{ user.profile.image.url }}" alt="User image" class="img-fluid" style="width: 50px; height: 50px; border-radius: 100%; margin-top: 5px;">
 
         {% if user.is_authenticated %}
+            <img src="{{ user.profile.image.url }}" alt="User image" class="img-fluid" style="width: 50px; height: 50px; border-radius: 100%; margin-top: 5px;">
             <a href="{% url 'django_app:profile' %}"
                type="button"
                class="btn btn-outline-success me-2"
@@ -27,12 +28,11 @@
                 {{ user.username }}
             </a>
         {% else %}
-            <a href="{% url 'django_app:login' %}"
-               type="button"
-               class="btn btn-outline-primary me-2"
-               style="margin-left: 15px;">
-                Login (anonymous)
-            </a>
+
+            <form class="d-flex">
+        <a href="{% url 'django_app:login' %}" class="btn btn-outline-primary" type="submit" style="padding-left: 50px; padding-right: 50px; margin-right: 5px;">Sign in</a>
+        <a href="{% url 'django_app:register' %}" class="btn btn-outline-success" type="submit" style="padding-left: 50px; padding-right: 50px;">Sign up</a>
+      </form>
         {% endif %}
     </div>
 </form>
@@ -75,7 +75,7 @@
             <ul class="list-group">
                 {% for notification in notifications %}
                     <li class="list-group-item">
-                        {{ notification }}
+                        {{ notification.message }}
                     </li>
                 {% endfor %}
             </ul>

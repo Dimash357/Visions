@@ -1,58 +1,26 @@
 import os
-
 from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
-from django.views import View
 from django_app import models
 from .forms import ProfileUpdateForm
-from django.conf import settings
-from django.core.handlers.wsgi import WSGIRequest
 from django.utils import timezone
-from .models import profile
+from .models import profile, Notification
+from django.shortcuts import redirect
+from django.contrib import messages
+from .models import Task
 
 
-# def logging(controller_func):
-#     def wrapper(*args, **kwargs):
-#         print(args, kwargs)
-#         request: WSGIRequest = args[0]
-#         print(request.META)
-#
-#         models.Logging.objects.create(
-#             user=request.user,
-#             method=request.method,
-#             status=0,
-#             url="",
-#             description="init"
-#         )
-#         try:
-#             response: HttpResponse = controller_func(*args, **kwargs)
-#             if settings.DEBUG_LOG:
-#                 models.Logging.objects.create(
-#                     user=request.user,
-#                     method=request.method,
-#                     status=200,
-#                     url="",
-#                     description="Response: " + str(response.content)
-#                 )
-#             return response
-#         except Exception as error:
-#             models.Logging.objects.create(
-#                 user=request.user,
-#                 method=request.method,
-#                 status=500,
-#                 url="",
-#                 description="Error: " + str(error)
-#             )
-#             context = {"detail": str(error)}
-#             if str(error).find("query does not exist"):
-#                 context["extra"] = "Такого объекта не существует"
-#             return render(request, "components/error.html", context=context)
-#
-#     return wrapper
+def login_user(request):
+    if not request.user.is_staff:  # Только для обычных пользователей
+        user = authenticate(request, username='user', password='password')
+        if user is not None:
+            login(request, user)
 
 
 class CustomPaginator:
@@ -67,86 +35,103 @@ class CustomPaginator:
             page = paginator_instance.page(number=paginator_instance.num_pages)
         return page
 
-
-class HomeView(View):  # TODO контроллер класс
-    template_name = 'django_app/home.html'
-
-    def get(self, request: HttpRequest) -> HttpResponse:
-        context = {}
-        return render(request, 'django_app/home.html', context=context)
-
-    def post(self, request: HttpRequest) -> HttpResponse:
-        context = {}
-        return render(request, 'django_app/home.html', context=context)
-
-# @logging
 def home_view(request: HttpRequest) -> HttpResponse:  # TODO контроллер функция
     context = {}
-    return render(request, 'django_app/home.html', context=context)
+    return render(request, 'django_app/home_main.html', context=context)
 
 
 def home_main(request):
     users = profile.objects.all().order_by('-points')  # Получаем всех пользователей
-    notifications = [
-        "Вы получили 200 поинтов за регистрацию"
-    ]  # Массив уведомлений
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+
+    notifications.update(is_read=True)
+
     return render(request, 'django_app/home_main.html', {'users': users, 'notifications': notifications})
 
-from .models import Task
 
 def homework(request):
-    tasks = Task.objects.all()
+    tasks = Task.objects.filter(user=request.user).order_by('is_completed')
+
     return render(request, 'django_app/homework.html', {'tasks': tasks})
 
 
 def upload_task(request, task_id):
     if request.method == 'POST':
         try:
-            task = Task.objects.get(id=task_id)
+            task = Task.objects.get(id=task_id, user=request.user)
             uploaded_file = request.FILES['attachment']
 
-            # Логика обработки прикрепленного файла (например, сохранение в файловую систему)
             task_dir = os.path.join('C:/Users/Lenova/Documents/visions/static/media/tasks', str(task_id))
 
-            # Создаём директорию, если она не существует
             os.makedirs(task_dir, exist_ok=True)
 
-            file_path = os.path.join(task_dir, uploaded_file.name)
+            username = request.user.username
+            file_name = f"{username}_{uploaded_file.name}"
+
+            file_path = os.path.join(task_dir, file_name)
             with open(file_path, 'wb+') as destination:
                 for chunk in uploaded_file.chunks():
                     destination.write(chunk)
 
-            # Отмечаем задание выполненным
             task.is_completed = True
             task.save()
 
-            return redirect('django_app:homework')  # Перенаправляем обратно на страницу заданий
+            profile = request.user.profile
+            profile.points += 300
+            total_tasks = 6  # Общее количество заданий
+            completed_tasks = Task.objects.filter(user=request.user, is_completed=True).count()  # Выполненные задания
+
+            if completed_tasks == total_tasks and total_tasks > 0:  # Все задания выполнены
+                profile.is_eligible_for_testing = True
+                Notification.objects.create(
+                    user=request.user,
+                    message="Поздравляем! Вы выполнили все задания и допущены к тестированию!",
+                )
+                messages.success(request, "Поздравляем! Вы выполнили все задания и допущены к тестированию!")
+
+            profile.save()
+
+            Notification.objects.create(
+                user=request.user,
+                message=f"Вы выполнили задание '{task.title}' и получили 300 очков!",
+            )
+
+            return redirect('django_app:homework')
         except Task.DoesNotExist:
             return redirect('django_app:homework')
 
 
-def visions(request: HttpRequest) -> HttpResponse:
-    context = {}
-    return render(request, 'django_app/home.html', context=context)
-
-# @logging
 def profile_create(request):
     return render(request, 'django_app/profile.html')
 
-# @logging
-from django.contrib.auth.decorators import login_required
 
-@login_required
 def profileupdate(request):
-    user_profile = request.user.profile
     if request.method == 'POST':
-        form = ProfileUpdateForm(request.POST, request.FILES, instance=user_profile)
-        if form.is_valid():
-            form.save()
-            return redirect('django_app:profile')  # Укажите URL для перенаправления
+        profile = request.user.profile
+
+        pform = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
+
+        if pform.is_valid():
+            pform.save()
+
+            if all([profile.image, profile.city, profile.description]):
+                if profile.points == 100:
+                    profile.points += 200
+                    profile.save()
+
+                    Notification.objects.create(
+                        user=request.user,
+                        message="Вы заполнили все данные и получили 200 очков!",
+                    )
+
+                    messages.success(request, "Вы получили 200 очков за заполнение профиля!")
+
+            return redirect('django_app:profile')
     else:
-        form = ProfileUpdateForm(instance=user_profile)
-    return render(request, 'django_app/profileupdate.html', {'form': form})
+        profile = request.user.profile
+        pform = ProfileUpdateForm(instance=profile)
+
+    return render(request, 'django_app/profileupdate.html', {'pform': pform})
 
 
 # @logging
@@ -156,11 +141,39 @@ def register(request):
         email = request.POST.get("email", "")
         password = request.POST.get("password", "")
 
-        user = User.objects.create_user(username=username, email=email, password=password)
-        login(request, user)
+        if User.objects.filter(username=username).exists():
+            error_message = "Пользователь с таким логином уже существует."
+            return render(request, 'django_app/register.html', {'error_message': error_message})
 
-        return redirect(reverse('django_app:home', args=()))
-    return render(request, 'django_app/register.html', context={})
+        if User.objects.filter(email=email).exists():
+            error_message = "Пользователь с таким email уже существует."
+            return render(request, 'django_app/register.html', {'error_message': error_message})
+
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            error_message = "Вы ввели очень легкий пароль"  # Объединяем все сообщения об ошибках в одну строку
+            return render(request, 'django_app/register.html', {'error_message': error_message})
+
+        if username and email and password:
+            user = User.objects.create_user(username=username, email=email, password=password)
+            login(request, user)
+
+            profile = request.user.profile
+            profile.points += 100
+            profile.save()
+
+            Notification.objects.create(
+                user=request.user,
+                message=f"Вы зарегистрировались и получили 100 очков!",
+            )
+            return redirect(reverse('django_app:home_main', args=()))
+        else:
+            error_message = "Все поля обязательны для заполнения."
+            return render(request, 'django_app/register.html', {'error_message': error_message})
+    else:
+        return render(request, 'django_app/register.html')
+
 
 # @logging
 def login_(request):
@@ -173,15 +186,13 @@ def login_(request):
             login(request, user)
             return redirect(reverse('django_app:home_main', args=()))
         else:
-            raise Exception("Логин или пароль не верны!")
+            error_message = "Логин или пароль не верны!"
+            return render(request, 'django_app/login.html', {'error_message': error_message})
     return render(request, 'django_app/login.html')
 
-# @logging
 def logout_f(request):
     logout(request)
     return redirect(reverse('django_app:login', args=()))
-
-# @logging
 
 
 def todo_create(request):
