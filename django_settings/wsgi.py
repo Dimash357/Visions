@@ -11,9 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-if 'admin' in os.getenv('DJANGO_SETTINGS_MODULE', ''):
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', '../django_settings.admin_settings')
-else:
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', '../django_settings.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_settings.settings')
 
 application = get_wsgi_application()

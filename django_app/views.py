@@ -4,8 +4,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, redirect
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django_app import models
 from .forms import ProfileUpdateForm
@@ -14,6 +14,59 @@ from .models import profile, Notification
 from django.shortcuts import redirect
 from django.contrib import messages
 from .models import Task
+
+
+import requests
+from django.http import JsonResponse
+from django.conf import settings
+
+TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/getChatMember"
+CHANNEL_ID = "@visionskz"  # Ваш канал
+
+def check_subscription_telegram(request):
+    telegram_username = request.GET.get("username")  # Имя пользователя Telegram
+    if not telegram_username:
+        return JsonResponse({"success": False, "message": "Введите ваш Telegram username."})
+
+    url = TELEGRAM_API_URL.format(token=settings.TELEGRAM_BOT_TOKEN)
+    response = requests.get(url, params={"chat_id": CHANNEL_ID, "user_id": telegram_username})
+    data = response.json()
+
+    if data.get("ok") and data.get("result", {}).get("status") in ["member", "administrator", "creator"]:
+        # Пользователь подписан
+        profile_obj = get_object_or_404(profile, user=request.user)
+        if not Notification.objects.filter(user=request.user, message="Вы подписались на Telegram и получили 50 очков!").exists():
+            profile_obj.points += 100
+            profile_obj.save()
+            Notification.objects.create(
+                user=request.user,
+                message="Вы подписались на Telegram и получили 100 очков!"
+            )
+        return JsonResponse({"success": True, "message": "Вы успешно подписаны на канал! Баллы начислены."})
+    else:
+        return JsonResponse({"success": False, "message": "Вы не подписаны на канал. Пожалуйста, подпишитесь и попробуйте снова."})
+
+
+def check_subscription_instagram(request):
+    profile_obj = get_object_or_404(profile, user=request.user)
+
+    # Проверяем, начислялись ли уже баллы за Instagram
+    if not Notification.objects.filter(user=request.user, message="Вы подписались на Instagram и получили 50 очков!").exists():
+        # Здесь должна быть логика проверки подписки через Instagram API
+        # Если подписка успешна:
+        profile_obj.points += 100
+        profile_obj.save()
+
+        Notification.objects.create(
+            user=request.user,
+            message="Вы подписались на Instagram и получили 100 очков!"
+        )
+        messages.success(request, "Вы успешно подписались на Instagram! Баллы начислены.")
+    else:
+        messages.info(request, "Вы уже получили баллы за подписку на Instagram.")
+
+    return redirect('https://www.instagram.com/visions_kz/')  # Ссылка на ваш аккаунт в Instagram
+
 
 
 def login_user(request):
@@ -99,6 +152,9 @@ def upload_task(request, task_id):
             return redirect('django_app:homework')
         except Task.DoesNotExist:
             return redirect('django_app:homework')
+
+def about(request):
+    return render(request, 'django_app/about.html')
 
 
 def profile_create(request):
