@@ -33,6 +33,8 @@ ALLOWED_HOSTS = ['*']
 
 DEBUG_LOG = True
 
+TELEGRAM_BOT_TOKEN = ""
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -53,7 +55,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_app.middleware.AdminSessionMiddleware'
 ]
 
 ROOT_URLCONF = 'django_settings.urls'
